@@ -1,6 +1,31 @@
 @echo off
 REM ADK Agent Virtual Environment Setup Script for Windows
 
+setlocal enabledelayedexpansion
+
+REM --- Function for error handling ---
+:handle_error
+echo Error: %~1
+exit /b 1
+
+REM --- Part 1: Set Google Cloud Project ID ---
+set "PROJECT_FILE=%USERPROFILE%\project_id.txt"
+echo --- Setting Google Cloud Project ID File ---
+
+set /p user_project_id="Please enter your Google Cloud project ID: "
+
+if not defined user_project_id (
+    call :handle_error "No project ID was entered."
+)
+
+echo You entered: !user_project_id!
+echo !user_project_id! > "%PROJECT_FILE%"
+
+if !errorlevel! neq 0 (
+    call :handle_error "Failed saving your project ID: !user_project_id!."
+)
+echo Successfully saved project ID.
+
 echo 🚀 Setting up ADK Agent virtual environment...
 
 REM Check if Python is installed
@@ -40,11 +65,48 @@ REM Install requirements
 echo 📥 Installing dependencies...
 pip install -r requirements.txt
 
-echo ✅ Setup complete!
+echo --- Setting Google Cloud Environment Variables ---
+
+REM --- Authentication Check ---
+echo Checking gcloud authentication status...
+
+gcloud auth print-access-token >nul 2>&1
+if !errorlevel! neq 0 (
+    echo Error: gcloud is not authenticated.
+    echo Please log in by running: gcloud auth login
+    exit /b 1
+)
+echo gcloud is authenticated.
+
+REM --- Get Project ID and Create .env file ---
+if not exist "%PROJECT_FILE%" (
+    echo Error: Project file not found at "%PROJECT_FILE%"
+    echo Please run the script again and provide your Google Cloud project ID.
+    exit /b 1
+)
+
+for /f "delims=" %%i in (%PROJECT_FILE%) do set PROJECT_ID_FROM_FILE=%%i
+echo Setting gcloud config project to: !PROJECT_ID_FROM_FILE!
+gcloud config set project "!PROJECT_ID_FROM_FILE!" --quiet
+
+REM Re-confirm the project ID from the config
+for /f "delims=" %%j in ('gcloud config get project') do set PROJECT_ID=%%j
+set "REGION=us-central1"
+
+echo 📝 Creating .env file...
+(
+    echo # Environment variables for ADK Agent, created by setup_venv.bat
+    echo GOOGLE_GENAI_USE_VERTEXAI=TRUE
+    echo GOOGLE_CLOUD_PROJECT=!PROJECT_ID!
+    echo GOOGLE_CLOUD_LOCATION=!REGION!
+) > .env
+
+echo ✅ Setup complete! A '.env' file has been created with your configuration.
 echo.
-echo To activate the virtual environment in the future, run:
+echo To activate the virtual environment, run:
 echo    .adk_env\Scripts\activate
 echo.
+echo Your agent will automatically load the settings from the .env file.
 echo To deactivate the virtual environment, run:
 echo    deactivate
 echo.

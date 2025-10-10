@@ -4,7 +4,7 @@ A specialized AI agent built with Google's AI Development Kit (ADK) that generat
 
 **check [goog.gle/advancedadk](https://goog.gle/advancedadk) to set up**
 
-<img src="cover.png" alt="Alt text for your image" width="500"/>
+<img src="cover.png" alt="Alt text for your image" width="300"/>
 
 ## Features
 

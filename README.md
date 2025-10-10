@@ -2,6 +2,10 @@
 
 A specialized AI agent built with Google's AI Development Kit (ADK) that generates creative and fun day trip plans based on user preferences, location, and budget constraints.
 
+**check [goog.gle/advancedadk](https://goog.gle/advancedadk) to set up**
+
+![cover pic](cover.png)
+
 ## Features
 
 - 🎯 **Personalized Planning**: Generates trip suggestions based on user interests and preferences
@@ -10,6 +14,10 @@ A specialized AI agent built with Google's AI Development Kit (ADK) that generat
 - 🔍 **Real-Time Search**: Uses Google Search to find current events and venues
 - 📅 **Date-Specific**: Plans activities for specific weekend dates
 - 🎨 **Creative Suggestions**: Maximum 3 distinct activities per plan with detailed location information
+
+## Tutorial
+
+For a guided walkthrough of how to set up this project, please refer to the tutorial at [goog.gle/advancedadk](https://goog.gle/advancedadk).
 
 ## Prerequisites
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # setup_trip_database.py
 import sqlite3
 import os

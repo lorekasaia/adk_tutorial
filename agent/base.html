@@ -38,7 +38,12 @@
             const prompt = input.value.trim();
             if(!prompt) return;
 
-            chatBox.innerHTML += `<div class="msg user">${prompt}</div>`;
+            // Prevención de XSS: Usar DOM seguro para el mensaje del usuario
+            const userMsgDiv = document.createElement('div');
+            userMsgDiv.className = 'msg user';
+            userMsgDiv.textContent = prompt;
+            chatBox.appendChild(userMsgDiv);
+            
             input.value = '';
 
             try {
@@ -49,9 +54,25 @@
                 });
                 const data = await response.json();
                 const reply = data.respuesta || data.error;
-                chatBox.innerHTML += `<div class="msg bot">${reply.replace(/\\n/g, '<br>')}</div>`;
+                
+                // Prevención de XSS: Crear nodos de texto para la respuesta del bot
+                const botMsgDiv = document.createElement('div');
+                botMsgDiv.className = 'msg bot';
+                const lineas = reply.split('\\n');
+                lineas.forEach((linea, index) => {
+                    botMsgDiv.appendChild(document.createTextNode(linea));
+                    if (index < lineas.length - 1) {
+                        botMsgDiv.appendChild(document.createElement('br'));
+                    }
+                });
+                chatBox.appendChild(botMsgDiv);
+                
             } catch(e) {
-                chatBox.innerHTML += `<div class="msg bot" style="color:red;">Error de conexión.</div>`;
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'msg bot';
+                errorDiv.style.color = 'red';
+                errorDiv.textContent = 'Error de conexión.';
+                chatBox.appendChild(errorDiv);
             }
             chatBox.scrollTop = chatBox.scrollHeight;
         }

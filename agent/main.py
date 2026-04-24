@@ -18,13 +18,21 @@ load_dotenv()
 app = FastAPI(title="Batia Agent UI")
 
 # --- HERRAMIENTAS DE DATOS ---
+# Cargar los datos en memoria una sola vez al arrancar la app para mejorar el rendimiento
+try:
+    df_clientes = pd.read_csv('datosdeprueba.csv')
+except Exception:
+    df_clientes = pd.DataFrame() # Si falla, creamos un DataFrame vacío para que no colapse
+
 def buscar_clientes_por_criterio(descripcion: str) -> str:
-    try:
-        # Cargamos tu archivo de datos de prueba
-        df = pd.read_csv('datosdeprueba.csv')
-        return df.to_string()
-    except:
-        return "Error: No se encontró el archivo datosdeprueba.csv."
+    """
+    Busca información sobre los clientes en la base de datos de ventas.
+    """
+    if df_clientes.empty:
+        return "Error: No se encontraron datos. Asegúrate de que datosdeprueba.csv exista."
+    
+    # Nota: Limitamos a los primeros 50 registros para evitar exceder el límite de contexto del LLM
+    return df_clientes.head(50).to_string()
 
 # --- CONFIGURACIÓN DEL AGENTE (ADK 1.15.1) ---
 agente = adk.Agent(
@@ -65,13 +73,11 @@ async def chat_endpoint(request: Request):
         # 2. Aseguramos que la sesión exista en la base de datos antes de usarla
         try:
             session = await session_service.get_session(app_name=agente.name, user_id="web_user", session_id="web_session")
-            if session is None:
-                await session_service.create_session(session_id="web_session", app_name=agente.name, user_id="web_user")
         except Exception:
-            try:
-                await session_service.create_session(session_id="web_session", app_name=agente.name, user_id="web_user")
-            except Exception:
-                pass
+            session = None
+            
+        if not session:
+            await session_service.create_session(session_id="web_session", app_name=agente.name, user_id="web_user")
 
         # 3. Usamos runner.run_async() con un sistema de reintentos automático
         max_retries = 3
@@ -104,6 +110,8 @@ async def chat_endpoint(request: Request):
         error_msg = str(e)
         if "503" in error_msg and "UNAVAILABLE" in error_msg:
             return {"respuesta": "El agente está experimentando una alta demanda en los servidores de Google en este momento. Por favor, espera un par de minutos y vuelve a intentarlo. ⏳"}
+        elif "getaddrinfo failed" in error_msg:
+            return {"respuesta": "Error de red: No se pudo conectar a los servidores de Google. Verifica tu conexión a internet, VPN o configuración de proxy corporativo. 🌐"}
         return {"error": f"Error en ejecución: {error_msg}"}
 
 if __name__ == "__main__":

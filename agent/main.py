@@ -18,21 +18,46 @@ load_dotenv()
 app = FastAPI(title="Batia Agent UI")
 
 # --- HERRAMIENTAS DE DATOS ---
+# --- CONFIGURACIÓN DE BASE DE DATOS (Preparación para Cloud SQL) ---
+USE_CLOUD_SQL = os.getenv("USE_CLOUD_SQL", "False").lower() in ("true", "1")
+
 # Cargar los datos en memoria una sola vez al arrancar la app para mejorar el rendimiento
 try:
-    df_clientes = pd.read_csv('datosdeprueba.csv')
+    df_clientes_local = pd.read_csv('datosdeprueba.csv')
 except Exception:
-    df_clientes = pd.DataFrame() # Si falla, creamos un DataFrame vacío para que no colapse
+    df_clientes_local = pd.DataFrame() # Si falla, creamos un DataFrame vacío para que no colapse
+
+def consultar_cloud_sql(descripcion: str) -> pd.DataFrame:
+    """
+    Plantilla para la futura conexión a Google Cloud SQL (PostgreSQL).
+    Nota: Requerirá instalar dependencias como 'pg8000', 'sqlalchemy' y 'cloud-sql-python-connector'.
+    """
+    # db_user = os.environ.get("DB_USER")
+    # db_pass = os.environ.get("DB_PASS")
+    # db_name = os.environ.get("DB_NAME")
+    # instance_connection_name = os.environ.get("INSTANCE_CONNECTION_NAME")
+    
+    # Aquí iría la lógica para conectarse y ejecutar un query usando la descripción como filtro
+    # engine = sqlalchemy.create_engine(...) 
+    # query = f"SELECT * FROM clientes WHERE intereses LIKE '%{descripcion}%' LIMIT 50"
+    # df = pd.read_sql(query, con=engine)
+    
+    print("Simulando consulta a Cloud SQL...")
+    return pd.DataFrame() # Placeholder temporal
 
 def buscar_clientes_por_criterio(descripcion: str) -> str:
     """
-    Busca información sobre los clientes en la base de datos de ventas.
+    Busca información sobre los clientes. 
+    Usa datos locales por defecto, preparado para migrar a Cloud SQL.
     """
-    if df_clientes.empty:
-        return "Error: No se encontraron datos. Asegúrate de que datosdeprueba.csv exista."
-    
-    # Nota: Limitamos a los primeros 50 registros para evitar exceder el límite de contexto del LLM
-    return df_clientes.head(50).to_string()
+    if USE_CLOUD_SQL:
+        df = consultar_cloud_sql(descripcion)
+        return df.to_string() if not df.empty else "No se encontraron resultados en la base de datos de producción."
+    else:
+        if df_clientes_local.empty:
+            return "Error: No se encontraron datos. Asegúrate de que datosdeprueba.csv exista."
+        # Nota: Limitamos a los primeros 50 registros para evitar exceder el límite de contexto del LLM
+        return df_clientes_local.head(50).to_string()
 
 # --- CONFIGURACIÓN DEL AGENTE (ADK 1.15.1) ---
 agente = adk.Agent(

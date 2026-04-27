@@ -24,24 +24,20 @@ import asyncio
 app = FastAPI(title="Batia Agent UI")
 
 # --- HERRAMIENTAS DE DATOS ---
-# --- CONFIGURACIÓN DE BASE DE DATOS (Preparación para Cloud SQL) ---
-USE_CLOUD_SQL = os.getenv("USE_CLOUD_SQL", "True").lower() in ("true", "1")
+# --- CONFIGURACIÓN DE BASE DE DATOS (Cloud SQL) ---
 
-# Cargar los datos en memoria una sola vez al arrancar la app para mejorar el rendimiento
-try:
-    df_clientes_local = pd.read_csv('datosdeprueba.csv')
-except Exception:
-    df_clientes_local = pd.DataFrame() # Si falla, creamos un DataFrame vacío para que no colapse
-
-def consultar_cloud_sql(descripcion: str) -> pd.DataFrame:
+def consultar_cloud_sql(termino_busqueda: str = "") -> pd.DataFrame:
     """
-    Plantilla para la futura conexión a Google Cloud SQL (PostgreSQL).
+    Se conecta a Google Cloud SQL (PostgreSQL) para consultar datos de clientes.
     Nota: Requerirá instalar dependencias como 'pg8000', 'sqlalchemy' y 'cloud-sql-python-connector'.
     """
     db_user = os.environ.get("DB_USER")
     db_pass = os.environ.get("DB_PASS")
     db_name = os.environ.get("DB_NAME")
     instance_connection_name = os.environ.get("INSTANCE_CONNECTION_NAME")
+
+    if not all([db_user, db_pass, db_name, instance_connection_name]):
+        raise ValueError("Faltan variables de entorno para Cloud SQL (DB_USER, DB_PASS, DB_NAME, INSTANCE_CONNECTION_NAME). Verifica tu archivo .env.")
     
     # Uso de Cloud SQL Python Connector
     connector = Connector()
@@ -56,7 +52,12 @@ def consultar_cloud_sql(descripcion: str) -> pd.DataFrame:
         )
     
     engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
-    query = f"SELECT * FROM clientes WHERE intereses LIKE '%{descripcion}%' LIMIT 50"
+    
+    termino_limpio = termino_busqueda.strip().lower()
+    if not termino_limpio or termino_limpio in ['todos', 'clientes', 'general', 'lista', 'información']:
+        query = "SELECT * FROM clientes LIMIT 50"
+    else:
+        query = f"SELECT * FROM clientes WHERE nombre ILIKE '%{termino_busqueda}%' OR empresa ILIKE '%{termino_busqueda}%' OR notas ILIKE '%{termino_busqueda}%' LIMIT 50"
     
     with engine.connect() as conn:
         df = pd.read_sql(sqlalchemy.text(query), con=conn)
@@ -65,26 +66,59 @@ def consultar_cloud_sql(descripcion: str) -> pd.DataFrame:
         
     return df
 
-def buscar_clientes_por_criterio(descripcion: str) -> str:
+def buscar_clientes_por_criterio(termino_busqueda: str = "") -> str:
     """
-    Busca información sobre los clientes. 
-    Usa datos locales por defecto, preparado para migrar a Cloud SQL.
+    Busca información sobre los clientes en la base de datos de producción (Cloud SQL).
+    Busca coincidencias en las columnas 'nombre', 'empresa' o 'notas'.
+    Si el usuario pide una lista general, usa un texto vacío ("").
     """
-    if USE_CLOUD_SQL:
-        df = consultar_cloud_sql(descripcion)
+    try:
+        df = consultar_cloud_sql(termino_busqueda)
         return df.to_string() if not df.empty else "No se encontraron resultados en la base de datos de producción."
-    else:
-        if df_clientes_local.empty:
-            return "Error: No se encontraron datos. Asegúrate de que datosdeprueba.csv exista."
-        # Nota: Limitamos a los primeros 50 registros para evitar exceder el límite de contexto del LLM
-        return df_clientes_local.head(50).to_string()
+    except Exception as e:
+        # Es buena práctica registrar el error real para depuración
+        print(f"Error al consultar Cloud SQL: {e}")
+        return f"Hubo un error al conectar con la base de datos: {e}. Por favor, verifica la configuración."
+
+def analizar_datos_clientes(metrica: str = "general") -> str:
+    """
+    Realiza un análisis de la cartera de clientes. 
+    Métricas permitidas: 'general' (resumen), 'prioridad' (conteo por nivel), o 'estado' (conteo por etapa).
+    """
+    try:
+        df = consultar_cloud_sql("") # Obtenemos todos los registros posibles
+        if df.empty:
+            return "No hay suficientes datos en la base para analizar."
+        
+        if metrica.lower() == "prioridad" and 'prioridad' in df.columns:
+            conteo = df['prioridad'].value_counts().to_string()
+            return f"Análisis de clientes por prioridad:\n{conteo}"
+        elif metrica.lower() == "estado" and '_estado' in df.columns:
+            conteo = df['_estado'].value_counts().to_string()
+            return f"Análisis de clientes por estado en el flujo interno:\n{conteo}"
+        else:
+            # Análisis general
+            total = len(df)
+            valor_estimado = df['valor_estimado'].sum() if 'valor_estimado' in df.columns else "N/D"
+            contactados = df['contactado'].sum() if 'contactado' in df.columns else "N/D"
+            return f"Resumen: {total} clientes totales. Valor total estimado: ${valor_estimado}. Clientes ya contactados: {contactados}."
+    except Exception as e:
+        return f"Error al procesar el análisis de datos: {e}"
+
+def agendar_cita_cliente(cliente_nombre: str, fecha: str, hora: str, motivo: str) -> str:
+    """
+    Agenda una cita o reunión con un cliente (Plantilla para integración con API de Calendario).
+    """
+    # NOTA: Aquí insertarías la llamada a la API real, ej. Google Calendar API o MS Graph.
+    print(f"[API CALL Mock] Agendando cita: {cliente_nombre} el {fecha} a las {hora} para {motivo}")
+    return f"¡Hecho! He agendado exitosamente la cita con {cliente_nombre} el día {fecha} a las {hora}. Motivo registrado: '{motivo}'."
 
 # --- CONFIGURACIÓN DEL AGENTE (ADK 1.15.1) ---
 agente = adk.Agent(
     name="BatiaCommercialAgent",
     model="gemini-2.5-flash",
-    instruction="Eres el asistente de Lorena Karen en Grupo Batia. Usa datosdeprueba.csv para gestionar ventas.",
-    tools=[buscar_clientes_por_criterio]
+    instruction="Eres el asistente de Lorena Karen en Grupo Batia. Tu función es gestionar la información de los clientes para ventas. Puedes buscar clientes en la base de datos, analizar el pipeline de ventas general, y agendar citas en el calendario. Al buscar clientes, básate en 'nombre', 'empresa' o 'notas' (nunca menciones 'intereses').",
+    tools=[buscar_clientes_por_criterio, analizar_datos_clientes, agendar_cita_cliente]
 )
 
 # Creamos el servicio de sesión (guardará el historial en sessions.db)

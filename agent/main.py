@@ -1,4 +1,11 @@
 import os
+from dotenv import load_dotenv
+
+# 1. Cargar configuración ANTES de importar las librerías de IA
+# Busca el .env en el directorio actual o fuerza la búsqueda en el directorio padre
+load_dotenv() 
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+
 import pandas as pd
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, FileResponse
@@ -6,20 +13,19 @@ from google import adk
 from google.adk.runners import Runner
 
 from google.adk.sessions import DatabaseSessionService
+import sqlalchemy
+from google.cloud.sql.connector import Connector, IPTypes
+import pg8000
 
 from google.genai.types import Content, Part
-from dotenv import load_dotenv
 import uvicorn
 import asyncio
-
-# 1. Cargar configuración
-load_dotenv()
 
 app = FastAPI(title="Batia Agent UI")
 
 # --- HERRAMIENTAS DE DATOS ---
 # --- CONFIGURACIÓN DE BASE DE DATOS (Preparación para Cloud SQL) ---
-USE_CLOUD_SQL = os.getenv("USE_CLOUD_SQL", "False").lower() in ("true", "1")
+USE_CLOUD_SQL = os.getenv("USE_CLOUD_SQL", "True").lower() in ("true", "1")
 
 # Cargar los datos en memoria una sola vez al arrancar la app para mejorar el rendimiento
 try:
@@ -32,18 +38,32 @@ def consultar_cloud_sql(descripcion: str) -> pd.DataFrame:
     Plantilla para la futura conexión a Google Cloud SQL (PostgreSQL).
     Nota: Requerirá instalar dependencias como 'pg8000', 'sqlalchemy' y 'cloud-sql-python-connector'.
     """
-    # db_user = os.environ.get("DB_USER")
-    # db_pass = os.environ.get("DB_PASS")
-    # db_name = os.environ.get("DB_NAME")
-    # instance_connection_name = os.environ.get("INSTANCE_CONNECTION_NAME")
+    db_user = os.environ.get("DB_USER")
+    db_pass = os.environ.get("DB_PASS")
+    db_name = os.environ.get("DB_NAME")
+    instance_connection_name = os.environ.get("INSTANCE_CONNECTION_NAME")
     
-    # Aquí iría la lógica para conectarse y ejecutar un query usando la descripción como filtro
-    # engine = sqlalchemy.create_engine(...) 
-    # query = f"SELECT * FROM clientes WHERE intereses LIKE '%{descripcion}%' LIMIT 50"
-    # df = pd.read_sql(query, con=engine)
+    # Uso de Cloud SQL Python Connector
+    connector = Connector()
+    def getconn():
+        return connector.connect(
+            instance_connection_name,
+            "pg8000",
+            user=db_user,
+            password=db_pass,
+            db=db_name,
+            ip_type=IPTypes.PUBLIC
+        )
     
-    print("Simulando consulta a Cloud SQL...")
-    return pd.DataFrame() # Placeholder temporal
+    engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
+    query = f"SELECT * FROM clientes WHERE intereses LIKE '%{descripcion}%' LIMIT 50"
+    
+    with engine.connect() as conn:
+        df = pd.read_sql(sqlalchemy.text(query), con=conn)
+        
+    connector.close()
+        
+    return df
 
 def buscar_clientes_por_criterio(descripcion: str) -> str:
     """

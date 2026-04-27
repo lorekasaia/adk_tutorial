@@ -9,8 +9,12 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 import pandas as pd
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from google import adk
 from google.adk.runners import Runner
+import matplotlib.pyplot as plt
+import matplotlib
+import uuid
 
 from google.adk.sessions import DatabaseSessionService
 import sqlalchemy
@@ -22,6 +26,13 @@ import uvicorn
 import asyncio
 
 app = FastAPI(title="Batia Agent UI")
+
+# Configuración para evitar errores de GUI con Matplotlib en servidores
+matplotlib.use('Agg')
+
+# Crear carpeta para guardar los gráficos generados y montarla en la web
+os.makedirs("graficos", exist_ok=True)
+app.mount("/graficos", StaticFiles(directory="graficos"), name="graficos")
 
 # --- HERRAMIENTAS DE DATOS ---
 # --- CONFIGURACIÓN DE BASE DE DATOS (Cloud SQL) ---
@@ -80,45 +91,67 @@ def buscar_clientes_por_criterio(termino_busqueda: str = "") -> str:
         print(f"Error al consultar Cloud SQL: {e}")
         return f"Hubo un error al conectar con la base de datos: {e}. Por favor, verifica la configuración."
 
-def analizar_datos_clientes(metrica: str = "general") -> str:
+def consultar_dashboard_bi(kpi: str, contexto: str = "general") -> str:
     """
-    Realiza un análisis de la cartera de clientes. 
-    Métricas permitidas: 'general' (resumen), 'prioridad' (conteo por nivel), o 'estado' (conteo por etapa).
+    Consulta la API de Business Intelligence corporativa (ej. Power BI / Looker) para obtener métricas agregadas avanzadas y KPIs.
+    Ejemplos de 'kpi': 'ventas_totales', 'tasa_conversion', 'rendimiento_vendedores'.
+    """
+    # NOTA: Esta es una plantilla lista para conectar con Power BI REST API o Looker API.
+    # Usarías librerías como 'msal' o 'requests' para autenticarte y hacer la petición HTTP al dashboard real.
+    print(f"[BI API Mock] Solicitando KPI: '{kpi}' con contexto '{contexto}'")
+    
+    if kpi == "ventas_totales":
+        return f"El Dashboard de BI reporta que las ventas totales para '{contexto}' son de $1,450,000 MXN este trimestre."
+    elif kpi == "tasa_conversion":
+        return f"Según la plataforma de BI, la tasa de conversión de prospectos a clientes para '{contexto}' se sitúa en un 24.5%."
+    elif kpi == "rendimiento_vendedores":
+        return "El reporte de BI indica que Lore lidera las ventas con un 120% de alcance de cuota, seguida de cerca por el resto del equipo."
+    else:
+        return f"Datos del Dashboard para el KPI '{kpi}': Los indicadores están estables y dentro de los rangos esperados para el período actual."
+
+def generar_grafico_analisis(metrica: str) -> str:
+    """
+    Genera un gráfico visual basado en los datos reales de los clientes en la base de datos.
+    Métricas permitidas: 'prioridad' (gráfico de barras) o 'estado' (gráfico de pastel).
     """
     try:
         df = consultar_cloud_sql("") # Obtenemos todos los registros posibles
         if df.empty:
-            return "No hay suficientes datos en la base para analizar."
+            return "No hay suficientes datos en la base para graficar."
+        
+        plt.figure(figsize=(8, 6))
         
         if metrica.lower() == "prioridad" and 'prioridad' in df.columns:
-            conteo = df['prioridad'].value_counts().to_string()
-            return f"Análisis de clientes por prioridad:\n{conteo}"
+            conteo = df['prioridad'].value_counts()
+            conteo.plot(kind='bar', color=['#4CAF50', '#FF9800', '#F44336'])
+            plt.title("Distribución de Clientes por Prioridad")
+            plt.xlabel("Nivel de Prioridad")
+            plt.ylabel("Cantidad de Clientes")
+            plt.xticks(rotation=0)
         elif metrica.lower() == "estado" and '_estado' in df.columns:
-            conteo = df['_estado'].value_counts().to_string()
-            return f"Análisis de clientes por estado en el flujo interno:\n{conteo}"
+            conteo = df['_estado'].value_counts()
+            conteo.plot(kind='pie', autopct='%1.1f%%', startangle=90)
+            plt.title("Proporción de Clientes por Estado Interno")
+            plt.ylabel("") # Ocultar label del eje Y
         else:
-            # Análisis general
-            total = len(df)
-            valor_estimado = df['valor_estimado'].sum() if 'valor_estimado' in df.columns else "N/D"
-            contactados = df['contactado'].sum() if 'contactado' in df.columns else "N/D"
-            return f"Resumen: {total} clientes totales. Valor total estimado: ${valor_estimado}. Clientes ya contactados: {contactados}."
+            return f"No se pudo generar el gráfico. Verifica que la métrica '{metrica}' sea 'prioridad' o 'estado'."
+        
+        filename = f"grafico_{uuid.uuid4().hex[:8]}.png"
+        filepath = os.path.join("graficos", filename)
+        plt.savefig(filepath, bbox_inches='tight')
+        plt.close()
+        
+        # Le decimos al modelo de IA qué HTML devolver para que el frontend muestre la imagen
+        return f"Gráfico generado con éxito. DEBES responder esto al usuario exactamente así para que vea la imagen: <br><img src='/graficos/{filename}' alt='Gráfico de {metrica}' style='max-width: 100%; border-radius: 8px; margin-top: 10px;'/>"
     except Exception as e:
-        return f"Error al procesar el análisis de datos: {e}"
-
-def agendar_cita_cliente(cliente_nombre: str, fecha: str, hora: str, motivo: str) -> str:
-    """
-    Agenda una cita o reunión con un cliente (Plantilla para integración con API de Calendario).
-    """
-    # NOTA: Aquí insertarías la llamada a la API real, ej. Google Calendar API o MS Graph.
-    print(f"[API CALL Mock] Agendando cita: {cliente_nombre} el {fecha} a las {hora} para {motivo}")
-    return f"¡Hecho! He agendado exitosamente la cita con {cliente_nombre} el día {fecha} a las {hora}. Motivo registrado: '{motivo}'."
+        return f"Error al procesar y graficar los datos: {e}"
 
 # --- CONFIGURACIÓN DEL AGENTE (ADK 1.15.1) ---
 agente = adk.Agent(
     name="BatiaCommercialAgent",
     model="gemini-2.5-flash",
-    instruction="Eres el asistente de Lorena Karen en Grupo Batia. Tu función es gestionar la información de los clientes para ventas. Puedes buscar clientes en la base de datos, analizar el pipeline de ventas general, y agendar citas en el calendario. Al buscar clientes, básate en 'nombre', 'empresa' o 'notas' (nunca menciones 'intereses').",
-    tools=[buscar_clientes_por_criterio, analizar_datos_clientes, agendar_cita_cliente]
+    instruction="Eres el asistente de Lore en Grupo Batia. Tu función es gestionar la información de los clientes para ventas. Puedes buscar clientes, consultar métricas en el Dashboard BI, y generar gráficos visuales reales usando los datos de la base de datos. Al buscar clientes, básate en 'nombre', 'empresa' o 'notas'. Siempre que generes un gráfico, debes mostrar la imagen en el chat usando etiquetas HTML (<img>).",
+    tools=[buscar_clientes_por_criterio, consultar_dashboard_bi, generar_grafico_analisis]
 )
 
 # Creamos el servicio de sesión (guardará el historial en sessions.db)

@@ -20,6 +20,8 @@
         input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
         button { background: #5e3dd7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
     </style>
+    <!-- Librería de seguridad para prevenir XSS al usar innerHTML -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
 </head>
 <body>
     <div id="header">
@@ -55,16 +57,12 @@
                 const data = await response.json();
                 const reply = data.respuesta || data.error;
                 
-                // Prevención de XSS: Crear nodos de texto para la respuesta del bot
                 const botMsgDiv = document.createElement('div');
                 botMsgDiv.className = 'msg bot';
-                const lineas = reply.split('\\n');
-                lineas.forEach((linea, index) => {
-                    botMsgDiv.appendChild(document.createTextNode(linea));
-                    if (index < lineas.length - 1) {
-                        botMsgDiv.appendChild(document.createElement('br'));
-                    }
-                });
+                // Reemplazamos los saltos de línea por <br> y usamos innerHTML para renderizar la etiqueta <img>
+                botMsgDiv.innerHTML = reply.replace(/\n/g, '<br>');
+                // Usamos DOMPurify para permitir la imagen pero bloquear cualquier script malicioso (XSS)
+                botMsgDiv.innerHTML = DOMPurify.sanitize(reply.replace(/\n/g, '<br>'));
                 chatBox.appendChild(botMsgDiv);
                 
             } catch(e) {

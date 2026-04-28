@@ -98,13 +98,22 @@
             
             input.value = '';
 
+            // Recuperamos el ID de sesión del almacenamiento local del navegador
+            const sessionId = localStorage.getItem('session_id');
+
             try {
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({prompt: prompt})
+                    body: JSON.stringify({prompt: prompt, session_id: sessionId})
                 });
                 const data = await response.json();
+                
+                // Guardamos el ID de sesión que nos devuelve el servidor para usarlo en el próximo mensaje
+                if (data.session_id) {
+                    localStorage.setItem('session_id', data.session_id);
+                }
+
                 const reply = data.respuesta || data.error;
                 
                 const botMsgDiv = document.createElement('div');

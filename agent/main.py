@@ -14,6 +14,9 @@ from google.adk.runners import Runner
 import matplotlib.pyplot as plt
 import matplotlib
 import uuid
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from google.adk.sessions import DatabaseSessionService
 import sqlalchemy
@@ -50,32 +53,29 @@ MAPA_ESTADOS_INVERSO = {v.lower(): k for k, v in MAPA_ESTADOS.items()}
 # --- HERRAMIENTAS DE DATOS ---
 # --- CONFIGURACIÓN DE BASE DE DATOS (Cloud SQL) ---
 
-def consultar_cloud_sql(termino_busqueda: str = "") -> pd.DataFrame:
-    """
-    Se conecta a Google Cloud SQL (PostgreSQL) para consultar datos de clientes.
-    Nota: Requerirá instalar dependencias como 'pg8000', 'sqlalchemy' y 'cloud-sql-python-connector'.
-    """
+def obtener_motor_bd():
+    """Función auxiliar para centralizar la conexión a Cloud SQL."""
     db_user = os.environ.get("DB_USER")
     db_pass = os.environ.get("DB_PASS")
     db_name = os.environ.get("DB_NAME")
     instance_connection_name = os.environ.get("INSTANCE_CONNECTION_NAME")
 
     if not all([db_user, db_pass, db_name, instance_connection_name]):
-        raise ValueError("Faltan variables de entorno para Cloud SQL (DB_USER, DB_PASS, DB_NAME, INSTANCE_CONNECTION_NAME). Verifica tu archivo .env.")
+        raise ValueError("Faltan variables de entorno para Cloud SQL (DB_USER, DB_PASS, DB_NAME, INSTANCE_CONNECTION_NAME).")
     
-    # Uso de Cloud SQL Python Connector
     connector = Connector()
     def getconn():
-        return connector.connect(
-            instance_connection_name,
-            "pg8000",
-            user=db_user,
-            password=db_pass,
-            db=db_name,
-            ip_type=IPTypes.PUBLIC
-        )
+        return connector.connect(instance_connection_name, "pg8000", user=db_user, password=db_pass, db=db_name, ip_type=IPTypes.PUBLIC)
     
     engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
+    return engine, connector
+
+def consultar_cloud_sql(termino_busqueda: str = "") -> pd.DataFrame:
+    """
+    Se conecta a Google Cloud SQL (PostgreSQL) para consultar datos de clientes.
+    Nota: Requerirá instalar dependencias como 'pg8000', 'sqlalchemy' y 'cloud-sql-python-connector'.
+    """
+    engine, connector = obtener_motor_bd()
     
     termino_limpio = termino_busqueda.strip().lower()
     if not termino_limpio or termino_limpio in ['todos', 'clientes', 'general', 'lista', 'información']:
@@ -132,20 +132,7 @@ def actualizar_estado_cliente(nombre_cliente: str, nuevo_estado_texto: str) -> s
     if estado_id is None:
         return f"Error: El estado '{nuevo_estado_texto}' no es válido. Los estados válidos son: {list(MAPA_ESTADOS.values())}."
 
-    # 2. Conectar a la base de datos
-    db_user = os.environ.get("DB_USER")
-    db_pass = os.environ.get("DB_PASS")
-    db_name = os.environ.get("DB_NAME")
-    instance_connection_name = os.environ.get("INSTANCE_CONNECTION_NAME")
-
-    if not all([db_user, db_pass, db_name, instance_connection_name]):
-        raise ValueError("Faltan variables de entorno para Cloud SQL.")
-
-    connector = Connector()
-    def getconn():
-        return connector.connect(instance_connection_name, "pg8000", user=db_user, password=db_pass, db=db_name, ip_type=IPTypes.PUBLIC)
-    
-    engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
+    engine, connector = obtener_motor_bd()
 
     try:
         with engine.connect() as conn:
@@ -175,19 +162,7 @@ def registrar_seguimiento_cliente(nombre_cliente: str, tipo_contacto: str, descr
     """
     Registra un nuevo seguimiento en el historial del cliente (ej. llamada, correo, reunion, whatsapp).
     """
-    db_user = os.environ.get("DB_USER")
-    db_pass = os.environ.get("DB_PASS")
-    db_name = os.environ.get("DB_NAME")
-    instance_connection_name = os.environ.get("INSTANCE_CONNECTION_NAME")
-
-    if not all([db_user, db_pass, db_name, instance_connection_name]):
-        raise ValueError("Faltan variables de entorno para Cloud SQL.")
-
-    connector = Connector()
-    def getconn():
-        return connector.connect(instance_connection_name, "pg8000", user=db_user, password=db_pass, db=db_name, ip_type=IPTypes.PUBLIC)
-    
-    engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
+    engine, connector = obtener_motor_bd()
 
     try:
         with engine.connect() as conn:
@@ -285,10 +260,32 @@ def analizar_documento_cliente(nombre_cliente: str, tipo_documento: str) -> str:
     return f"[Document AI Simulación] He analizado el documento '{tipo_documento}' de {nombre_cliente}. Los puntos clave indican un interés presupuestal sólido y solicitan soporte técnico adicional. No se encontraron riesgos legales."
 
 def enviar_correo_cliente(nombre_cliente: str, correo_destino: str, asunto: str, cuerpo: str) -> str:
-    """Envía un correo electrónico a un prospecto o cliente."""
-    # Plantilla para futura integración con Microsoft Graph API o SMTP
-    print(f"[EMAIL MOCK] Enviando a {correo_destino} | Asunto: {asunto} | Cuerpo: {cuerpo}")
-    return f"¡Hecho! El correo automatizado con asunto '{asunto}' fue enviado exitosamente a {nombre_cliente} ({correo_destino})."
+    """
+    Envía un correo electrónico REAL usando el servidor SMTP de Office 365.
+    """
+    email_user = os.environ.get("EMAIL_USER")
+    email_pass = os.environ.get("EMAIL_PASS")
+    
+    if not email_user or not email_pass:
+        return "Error: Faltan las variables EMAIL_USER y EMAIL_PASS en el archivo .env."
+        
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = email_user
+        msg['To'] = correo_destino
+        msg['Subject'] = asunto
+        msg.attach(MIMEText(cuerpo, 'plain'))
+        
+        # Conexión al servidor SMTP de Microsoft (Office 365)
+        server = smtplib.SMTP('smtp.office365.com', 587)
+        server.starttls()
+        server.login(email_user, email_pass)
+        server.send_message(msg)
+        server.quit()
+        
+        return f"¡Éxito! El correo con asunto '{asunto}' fue enviado realmente a {nombre_cliente} ({correo_destino})."
+    except Exception as e:
+        return f"Error al intentar enviar el correo por SMTP: {e}"
 
 def calcular_probabilidad_cierre(nombre_cliente: str) -> str:
     """Utiliza un modelo predictivo (Lead Scoring) para calcular la probabilidad de que un prospecto cierre la venta."""
@@ -333,6 +330,11 @@ async def get_ui():
 async def chat_endpoint(request: Request):
     data = await request.json()
     prompt = data.get("prompt")
+    session_id = data.get("session_id")
+    # Si el frontend no envía un ID de sesión, creamos uno nuevo.
+    # El frontend debería guardar este ID y enviarlo en las siguientes peticiones.
+    if not session_id:
+        session_id = f"web-session-{uuid.uuid4()}"
     if not prompt:
         return {"error": "No se recibió ningún prompt."}
     
@@ -343,12 +345,12 @@ async def chat_endpoint(request: Request):
 
         # 2. Aseguramos que la sesión exista en la base de datos antes de usarla
         try:
-            session = await session_service.get_session(app_name=agente.name, user_id="web_user", session_id="web_session")
+            session = await session_service.get_session(app_name=agente.name, user_id="web_user", session_id=session_id)
         except Exception:
             session = None
             
         if not session:
-            await session_service.create_session(session_id="web_session", app_name=agente.name, user_id="web_user")
+            await session_service.create_session(session_id=session_id, app_name=agente.name, user_id="web_user")
 
         # 3. Usamos runner.run_async() con un sistema de reintentos automático
         max_retries = 3
@@ -357,7 +359,7 @@ async def chat_endpoint(request: Request):
                 full_response = ""
                 async for event in runner.run_async(
                     user_id="web_user",
-                    session_id="web_session",
+                    session_id=session_id,
                     new_message=message
                 ):
                     # El texto de respuesta está dentro de event.content.parts
@@ -373,9 +375,9 @@ async def chat_endpoint(request: Request):
                 raise e  # Si no es un error 503 o se agotaron los intentos, lanzamos el error al bloque except principal
         
         if full_response:
-            return {"respuesta": full_response}
+            return {"respuesta": full_response, "session_id": session_id}
         else:
-            return {"respuesta": "El agente procesó la tarea, pero no devolvió texto."}
+            return {"respuesta": "El agente procesó la tarea, pero no devolvió texto.", "session_id": session_id}
             
     except Exception as e:
         error_msg = str(e)
@@ -383,7 +385,7 @@ async def chat_endpoint(request: Request):
             return {"respuesta": "El agente está experimentando una alta demanda en los servidores de Google en este momento. Por favor, espera un par de minutos y vuelve a intentarlo. ⏳"}
         elif "getaddrinfo failed" in error_msg:
             return {"respuesta": "Error de red: No se pudo conectar a los servidores de Google. Verifica tu conexión a internet, VPN o configuración de proxy corporativo. 🌐"}
-        return {"error": f"Error en ejecución: {error_msg}"}
+        return {"error": f"Error en ejecución: {error_msg}", "session_id": session_id}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

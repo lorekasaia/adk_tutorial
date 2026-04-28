@@ -1,20 +1,21 @@
-# Google AI Development Kit (ADK) dependencies
-# Conditional installation based on Python version
-google-adk==0.3.0; python_version<"3.9"
-google-adk==1.15.1; python_version>="3.9"
+# Fichero de requerimientos para el Agente Comercial Batia
+# Instalar todas las dependencias con: pip install -r requirements.txt
 
-# Additional dependencies that might be needed
-python-dotenv>=1.0.0
-sqlalchemy>=2.0.0
-psycopg2-binary>=2.9.9
-cloud-sql-python-connector>=1.4.0
-pg8000>=1.30.0
+# --- Core AI & Web Framework ---
+# Kit de desarrollo de agentes de Google y sus dependencias de IA
+google-adk>=1.5.0
+# Framework para crear la API y la interfaz web
+fastapi
+# Servidor web para ejecutar FastAPI
+uvicorn[standard]
 
-# Development dependencies (optional)
-pytest==8.4.2
-pytest-asyncio==1.2.0
-black>=23.0.0
-flake8>=6.0.0
+# --- Conectividad y Datos ---
+python-dotenv         # Para cargar variables de entorno desde el archivo .env
+pandas                # Para manipulación y análisis de datos (ej. resultados de SQL)
+SQLAlchemy            # ORM para interactuar con la base de datos de forma segura
+cloud-sql-python-connector[pg8000] # Conector oficial para Cloud SQL con el driver de PostgreSQL
 
-# MCP Toolbox client library
-toolbox-core>=0.2.0
+# --- Utilidades Adicionales ---
+matplotlib            # Para generar los gráficos que se muestran en el chat
+python-multipart      # Necesario para que FastAPI maneje formularios y subidas
+requests              # Dependencia interna necesaria para las librerías de Google Cloud y GenAI

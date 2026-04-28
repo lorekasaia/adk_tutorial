@@ -35,6 +35,10 @@ matplotlib.use('Agg')
 os.makedirs("graficos", exist_ok=True)
 app.mount("/graficos", StaticFiles(directory="graficos"), name="graficos")
 
+# Crear carpeta para guardar los reportes de Excel generados y montarla en la web
+os.makedirs("reportes", exist_ok=True)
+app.mount("/reportes", StaticFiles(directory="reportes"), name="reportes")
+
 # --- CONSTANTES Y MAPEOS ---
 MAPA_ESTADOS = {
     1: 'Nuevo',
@@ -316,12 +320,52 @@ def calcular_probabilidad_cierre(nombre_cliente: str) -> str:
     # Plantilla: Aquí se calcularía combinando 'valor_estimado', estado actual y cantidad de seguimientos en la base de datos.
     return f"Basado en el modelo de Lead Scoring y las interacciones recientes, '{nombre_cliente}' tiene una probabilidad de cierre del **88% (Alta)**. ¡Te sugiero priorizar su seguimiento hoy mismo!"
 
+def exportar_datos_excel(termino_busqueda: str = "") -> str:
+    """
+    Busca clientes en la base de datos según un criterio y exporta los resultados a un archivo Excel (.xlsx).
+    Devuelve un enlace HTML para que el usuario descargue el archivo.
+    """
+    try:
+        df = consultar_cloud_sql(termino_busqueda)
+        if df.empty:
+            return "No hay datos en la base de datos que coincidan con ese criterio para exportar."
+        
+        filename = f"reporte_clientes_{uuid.uuid4().hex[:8]}.xlsx"
+        filepath = os.path.join("reportes", filename)
+        df.to_excel(filepath, index=False)
+        
+        return f"Reporte Excel generado con éxito. DEBES responder esto al usuario para que pueda descargarlo: <br><a href='/reportes/{filename}' download style='display: inline-block; padding: 10px 15px; background: #107c41; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px; font-weight: bold;'>📊 Descargar Reporte Excel</a>"
+    except Exception as e:
+        return f"Error al generar el archivo Excel: {e}"
+
+def ejecutar_consulta_sql_avanzada(query_sql: str) -> str:
+    """
+    Ejecuta una consulta SQL personalizada de SOLO LECTURA (SELECT) en la base de datos de producción.
+    Útil para consultas complejas, sumas condicionales o cruces avanzados que 'buscar_clientes_por_criterio' no cubre.
+    Ejemplo: SELECT empresa, valor_estimado FROM clientes WHERE valor_estimado > 50000
+    """
+    if not query_sql.strip().upper().startswith("SELECT"):
+        return "Error de seguridad: SÓLO se permiten consultas de tipo SELECT. No puedes modificar la base de datos."
+    
+    engine, connector = obtener_motor_bd()
+    try:
+        with engine.connect() as conn:
+            df = pd.read_sql(sqlalchemy.text(query_sql), con=conn)
+            if df.empty:
+                 return "La consulta se ejecutó correctamente pero no arrojó resultados."
+            # Si hay más de 50 filas, devolvemos un resumen para no saturar al modelo
+            return "Resultado de la consulta SQL (Mostrando max 50 filas):\n" + df.head(50).to_string()
+    except Exception as e:
+        return f"Error de sintaxis o ejecución SQL: {e}"
+    finally:
+        connector.close()
+
 # --- CONFIGURACIÓN DEL AGENTE (ADK 1.15.1) ---
 agente = adk.Agent(
     name="BatiaCommercialAgent",
     model="gemini-2.5-flash",
-    instruction="Eres el asistente avanzado de Lore en Grupo Batia. Capacidades: 1) Buscar clientes, 2) Consultar BI, 3) Generar gráficos HTML (<img>), 4) Actualizar estados, 5) Registrar seguimientos, 6) Analizar PDFs, 7) Enviar correos, 8) Calcular Lead Scoring, y 9) Obtener resúmenes financieros del pipeline. Actúa de forma proactiva, analítica y profesional.",
-    tools=[buscar_clientes_por_criterio, consultar_dashboard_bi, generar_grafico_analisis, actualizar_estado_cliente, registrar_seguimiento_cliente, analizar_documento_cliente, enviar_correo_cliente, calcular_probabilidad_cierre, obtener_resumen_pipeline]
+    instruction="Eres el asistente avanzado de Lore en Grupo Batia. Capacidades: 1) Buscar clientes, 2) Consultar BI, 3) Generar gráficos HTML (<img>), 4) Actualizar estados, 5) Registrar seguimientos, 6) Analizar PDFs, 7) Enviar correos, 8) Calcular Lead Scoring, 9) Obtener resúmenes financieros, 10) Exportar a Excel (<img>), y 11) Ejecutar SQL puro. Actúa de forma proactiva, analítica y profesional. Cuando te pidan cruces complejos, usa SQL.",
+    tools=[buscar_clientes_por_criterio, consultar_dashboard_bi, generar_grafico_analisis, actualizar_estado_cliente, registrar_seguimiento_cliente, analizar_documento_cliente, enviar_correo_cliente, calcular_probabilidad_cierre, obtener_resumen_pipeline, exportar_datos_excel, ejecutar_consulta_sql_avanzada]
 )
 
 # Creamos el servicio de sesión (guardará el historial en sessions.db)

@@ -19,3 +19,4 @@ cloud-sql-python-connector[pg8000] # Conector oficial para Cloud SQL con el driv
 matplotlib            # Para generar los gráficos que se muestran en el chat
 python-multipart      # Necesario para que FastAPI maneje formularios y subidas
 requests              # Dependencia interna necesaria para las librerías de Google Cloud y GenAI
+openpyxl              # Para exportar DataFrames a formato Excel (.xlsx)

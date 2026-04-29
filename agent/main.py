@@ -46,7 +46,7 @@ os.makedirs("documentos", exist_ok=True)
 # 5. Agente Orquestador (Manager)
 orchestrator_agent = adk.Agent(
     name="OrchestratorAgent",
-    model="gemini-1.5-flash",
+    model="gemini-2.5-flash",
     instruction="""Eres el Agente Orquestador (Manager). Tu única responsabilidad es analizar la solicitud del usuario y decidir cuál de los agentes especializados debe resolverla.
 Responde ÚNICAMENTE con el nombre exacto de la categoría.
 

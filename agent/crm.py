@@ -51,7 +51,7 @@ def registrar_seguimiento_cliente(nombre_cliente: str, tipo_contacto: str, descr
 
 crm_agent = adk.Agent(
     name="CRMAgent",
-    model="gemini-1.5-flash",
+    model="gemini-2.5-flash",
     instruction="Eres un asistente de CRM. Tu responsabilidad es actualizar el estado de los clientes en el pipeline y registrar seguimientos (llamadas, reuniones, etc.). Confirma siempre la acción realizada de forma clara.",
     tools=[actualizar_estado_cliente, registrar_seguimiento_cliente]
 )

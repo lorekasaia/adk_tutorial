@@ -106,7 +106,7 @@ def calcular_probabilidad_cierre(nombre_cliente: str) -> str:
 
 advanced_ai_agent = adk.Agent(
     name="AdvancedAIAgent",
-    model="gemini-1.5-flash",
+    model="gemini-2.5-flash",
     instruction="Eres un especialista en tareas complejas de IA. Tus funciones son: analizar documentos (PDF, Word, Excel, Imagen), enviar correos electrónicos reales y calcular la probabilidad de cierre (Lead Scoring). Eres detallado y analítico en tus respuestas.",
     tools=[analizar_documento_cliente, enviar_correo_cliente, calcular_probabilidad_cierre]
 )

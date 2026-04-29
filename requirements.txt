@@ -8,7 +8,7 @@ google-adk>=1.5.0
 fastapi
 # Servidor web para ejecutar FastAPI
 uvicorn[standard]
-google-generativeai   # SDK de Google Generative AI
+google-genai          # SDK de Google Generative AI (reemplaza google-generativeai)
 
 # --- Conectividad y Datos ---
 python-dotenv         # Para cargar variables de entorno desde el archivo .env

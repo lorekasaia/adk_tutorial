@@ -49,7 +49,7 @@ def revisar_clientes_abandonados() -> str:
 
 data_query_agent = adk.Agent(
     name="DataQueryAgent",
-    model="gemini-1.5-flash",
+    model="gemini-2.5-flash",
     instruction="Eres un especialista en consultar bases de datos. Tu única función es usar las herramientas para buscar clientes, ejecutar SQL de solo lectura (SELECT) y revisar clientes abandonados. Eres directo y preciso. Usa la herramienta 'revisar_clientes_abandonados' cuando se te pida explícitamente.",
     tools=[buscar_clientes_por_criterio, ejecutar_consulta_sql_avanzada, revisar_clientes_abandonados]
 )

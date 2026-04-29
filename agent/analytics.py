@@ -145,7 +145,7 @@ def generar_reporte_word(titulo: str, contenido: str) -> str:
 
 analytics_agent = adk.Agent(
     name="AnalyticsAgent",
-    model="gemini-1.5-flash",
+    model="gemini-2.5-flash",
     instruction="Eres un analista de datos y BI. Tu propósito es generar resúmenes financieros, crear gráficos (<img>), exportar a Excel (<a>), consultar KPIs y generar reportes en formato PDF o Word. Proporciona insights, visualizaciones y documentos descargables.",
     tools=[generar_grafico_analisis, obtener_resumen_pipeline, exportar_datos_excel, consultar_dashboard_bi, generar_reporte_pdf, generar_reporte_word]
 )

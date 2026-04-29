@@ -83,14 +83,24 @@ RUNNERS = {
 
 # --- Lógica de Enrutamiento ---
 
-async def route_to_agent(prompt: str) -> str:
+# Memoria temporal para saber qué agente estaba usando cada sesión
+LAST_AGENT_CACHE = {}
+
+async def route_to_agent(prompt: str, session_id: str) -> str:
     """Usa el OrchestratorAgent para clasificar el prompt y dirigirlo al especialista."""
+    last_agent = LAST_AGENT_CACHE.get(session_id)
+    
+    # Damos contexto al orquestador si es una continuación de la conversación
+    context_prompt = prompt
+    if last_agent:
+        context_prompt = f"[Contexto: El agente anterior usado en esta sesión fue {last_agent}. Si la siguiente frase es una respuesta corta o continuación, elige {last_agent}]\n\nFrase del usuario: {prompt}"
+
     try:
         # Instanciamos el cliente del nuevo SDK (google.genai)
         client = genai.Client()
         response = await client.aio.models.generate_content(
             model=orchestrator_agent.model,
-            contents=prompt,
+            contents=context_prompt,
             config=genai.types.GenerateContentConfig(system_instruction=orchestrator_agent.instruction)
         )
         category = response.text.strip().upper()
@@ -99,13 +109,16 @@ async def route_to_agent(prompt: str) -> str:
         for key in AGENTS.keys():
             if key in category:
                 print(f"[Orquestador] Tarea delegada al agente: {key}")
+                LAST_AGENT_CACHE[session_id] = key
                 return key
                 
-        print(f"[Orquestador] Clasificación inesperada: '{category}'. Usando 'DATA_QUERY' por defecto.")
-        return "DATA_QUERY"
+        fallback = last_agent or "DATA_QUERY"
+        print(f"[Orquestador] Clasificación inesperada: '{category}'. Usando '{fallback}' por defecto.")
+        return fallback
     except Exception as e:
-        print(f"[Orquestador] Error al enrutar: {e}. Usando 'DATA_QUERY' por defecto.")
-        return "DATA_QUERY"
+        fallback = last_agent or "DATA_QUERY"
+        print(f"[Orquestador] Error al enrutar: {e}. Usando '{fallback}' por defecto.")
+        return fallback
 
 # --- INTERFAZ WEB (HTML/CSS) ---
 @app.get("/", response_class=HTMLResponse)
@@ -129,7 +142,7 @@ async def chat_endpoint(request: Request):
     
     try:
         # 1. Enrutar el prompt al agente correcto
-        agent_category = await route_to_agent(prompt)
+        agent_category = await route_to_agent(prompt, session_id)
         selected_runner = RUNNERS[agent_category]
         selected_agent_name = selected_runner.agent.name
 

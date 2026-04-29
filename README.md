@@ -1,14 +1,20 @@
 # Agente Comercial Batia
 
-Un agente de IA especializado construido con Google's AI Development Kit (ADK) diseñado para ayudar al equipo comercial de Grupo Batia. El agente actúa como un asistente avanzado de CRM, capaz de consultar datos, actualizar estados, generar gráficos y enviar correos.
+Un sistema de IA multi-agente construido con el **Agent Development Kit (ADK) de Google**, diseñado para actuar como un asistente comercial avanzado para Grupo Batia.
 
 ## Características Principales
 
-- 🔍 **Búsqueda y Consulta**: Acceso en tiempo real a la base de datos de clientes en Google Cloud SQL.
-- 📈 **Análisis y Gráficos**: Generación de resúmenes financieros y gráficos visuales (Matplotlib) del pipeline.
-- ✍️ **Gestión de CRM**: Actualización de estados y registro de seguimientos de clientes.
-- 📧 **Comunicación**: Envío de correos electrónicos a clientes mediante SMTP (Office 365).
-- 🧠 **IA Avanzada**: Capacidades (simuladas/en desarrollo) de lectura de PDFs, Lead Scoring y conexión a tableros BI.
+- 🏢 **Arquitectura Multi-Agente**: Un agente orquestador inteligente dirige las tareas a 4 agentes especializados (Datos, Analítica, CRM e IA Avanzada).
+- 🔍 **Búsqueda y Consulta**: Acceso en tiempo real a la base de datos de clientes en Google Cloud SQL, con capacidad para ejecutar consultas SQL directas.
+- 📈 **Análisis y Reportes**:
+    - Generación de resúmenes financieros del pipeline.
+    - Creación de gráficos visuales (Matplotlib) sobre métricas clave.
+    - Exportación de datos a **Excel, PDF y Word**.
+- ✍️ **Gestión de CRM**: Actualización de estados y registro de seguimientos de clientes en el pipeline.
+- 🧠 **Capacidades de IA**:
+    - Envío de correos electrónicos a clientes mediante SMTP (Office 365).
+    - Análisis de documentos (**PDF, Word, Excel, Imágenes**) subidos por el usuario.
+    - Cálculo de probabilidad de cierre (**Lead Scoring**).
 
 ## Requisitos Previos
 
@@ -16,12 +22,6 @@ Un agente de IA especializado construido con Google's AI Development Kit (ADK) d
 - Credenciales de Google Cloud y acceso a la base de datos Cloud SQL.
 
 ## Configuración Rápida
-
-Instala las dependencias y activa tu entorno virtual:
-
-```bash
-pip install -r requirements.txt
-```
 
 ### What the Script Does
 
@@ -55,11 +55,15 @@ After the setup is complete:
     .adk_env\Scripts\activate
     ```
 
-2.  **Run the ADK web interface**:
+2.  **Run the FastAPI server**:
 
     ```bash
-    adk web
+    python agent/main.py
     ```
+
+3.  **Access the web interface**:
+
+    Open your browser and go to `http://127.0.0.1:8000`.
 
 ## Deactivating the Environment
 

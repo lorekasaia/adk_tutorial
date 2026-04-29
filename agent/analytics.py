@@ -1,5 +1,6 @@
 import os
 import uuid
+import re
 import pandas as pd
 import matplotlib.pyplot as plt
 from google import adk
@@ -37,26 +38,50 @@ def consultar_dashboard_bi(kpi: str, contexto: str = "general") -> str:
         return f"Datos del Dashboard para el KPI '{kpi}': Los indicadores están estables y dentro de los rangos esperados para el período actual."
 
 def generar_grafico_analisis(metrica: str) -> str:
+    """
+    Genera un gráfico visual basado en los datos de clientes.
+    El parámetro 'metrica' debe ser una de las siguientes opciones (o un sinónimo cercano):
+    - 'estado': Gráfico circular de la distribución de clientes por estado en el pipeline.
+    - 'prioridad': Gráfico de barras de clientes por nivel de prioridad.
+    - 'valor': Gráfico de barras del valor estimado del pipeline por estado.
+    - 'fuente': Gráfico de barras horizontales del origen de los prospectos.
+    - 'conversion': Gráfico circular de la tasa de conversión general.
+    """
     try:
         df = consultar_cloud_sql("") 
         if df.empty:
             return "No hay suficientes datos en la base para graficar."
         
+        # --- Normalización de métrica para flexibilidad ---
+        # Permite que el usuario pida "estado actual" y se mapee a "estado".
+        metrica_limpia = metrica.lower()
+        if "estado" in metrica_limpia:
+            metrica_limpia = "estado"
+        elif "prioridad" in metrica_limpia:
+            metrica_limpia = "prioridad"
+        elif "valor" in metrica_limpia:
+            metrica_limpia = "valor"
+        elif "fuente" in metrica_limpia or "origen" in metrica_limpia:
+            metrica_limpia = "fuente"
+        elif "conversión" in metrica_limpia or "conversion" in metrica_limpia:
+            metrica_limpia = "conversion"
+        # --- Fin de la normalización ---
+
         plt.figure(figsize=(8, 6))
-        if metrica.lower() == "prioridad" and 'prioridad' in df.columns:
+        if metrica_limpia == "prioridad" and 'prioridad' in df.columns:
             conteo = df['prioridad'].value_counts()
             conteo.plot(kind='bar', color=['#4CAF50', '#FF9800', '#F44336'])
             plt.title("Distribución de Clientes por Prioridad")
             plt.xlabel("Nivel de Prioridad")
             plt.ylabel("Cantidad de Clientes")
             plt.xticks(rotation=0)
-        elif metrica.lower() == "estado" and '_estado' in df.columns:
+        elif metrica_limpia == "estado" and '_estado' in df.columns:
             estados_texto = df['_estado'].map(MAPA_ESTADOS).fillna('Otro (' + df['_estado'].astype(str) + ')')
             conteo = estados_texto.value_counts()
             conteo.plot(kind='pie', autopct='%1.1f%%', startangle=90)
             plt.title("Proporción de Clientes por Estado Interno")
             plt.ylabel("")
-        elif metrica.lower() == "valor" and 'valor_estimado' in df.columns and '_estado' in df.columns:
+        elif metrica_limpia == "valor" and 'valor_estimado' in df.columns and '_estado' in df.columns:
             df['estado_texto'] = df['_estado'].map(MAPA_ESTADOS).fillna('Otro')
             suma_valor = df.groupby('estado_texto')['valor_estimado'].sum().sort_values(ascending=False)
             suma_valor.plot(kind='bar', color='#2196F3')
@@ -64,19 +89,19 @@ def generar_grafico_analisis(metrica: str) -> str:
             plt.xlabel("Estado del Cliente")
             plt.ylabel("Valor Estimado Total")
             plt.xticks(rotation=45, ha='right')
-        elif metrica.lower() == "fuente" and 'fuente' in df.columns:
+        elif metrica_limpia == "fuente" and 'fuente' in df.columns:
             conteo = df['fuente'].fillna('Desconocido').value_counts()
             conteo.sort_values().plot(kind='barh', color='#9C27B0')
             plt.title("Origen de los Prospectos (Fuentes)")
             plt.xlabel("Cantidad de Clientes")
             plt.ylabel("Fuente")
-        elif metrica.lower() == "conversion" and 'es_cliente' in df.columns:
+        elif metrica_limpia == "conversion" and 'es_cliente' in df.columns:
             conteo = df['es_cliente'].map({True: 'Cliente Cerrado', False: 'Prospecto Activo'}).value_counts()
             conteo.plot(kind='pie', autopct='%1.1f%%', startangle=90, colors=['#00BCD4', '#FFC107'])
             plt.title("Tasa de Conversión General")
             plt.ylabel("")
         else:
-            return f"No se pudo generar el gráfico. Verifica que la métrica '{metrica}' sea una de las permitidas."
+            return f"No se pudo generar el gráfico para la métrica '{metrica}'. Las métricas permitidas son: 'prioridad', 'estado', 'valor', 'fuente' y 'conversion'. Si el usuario pide 'todas', debes ejecutar esta herramienta 5 veces seguidas (una por cada métrica permitida)."
         
         filename = f"grafico_{uuid.uuid4().hex[:8]}.png"
         filepath = os.path.join("graficos", filename)
@@ -99,9 +124,10 @@ def exportar_datos_excel(termino_busqueda: str = "") -> str:
     except Exception as e:
         return f"Error al generar el archivo Excel: {e}"
 
-def generar_reporte_pdf(titulo: str, contenido: str) -> str:
+def generar_reporte_pdf(titulo: str, contenido: str, nombre_imagen: str = "") -> str:
     """
-    Crea un documento PDF con un título y un contenido de texto.
+    Crea un documento PDF con un título, un contenido de texto y opcionalmente una imagen.
+    Si generaste un gráfico antes, pasa su nombre de archivo (ej. 'grafico_123.png') en 'nombre_imagen'.
     Guarda el archivo en la carpeta 'reportes' y devuelve un enlace de descarga.
     """
     try:
@@ -111,6 +137,15 @@ def generar_reporte_pdf(titulo: str, contenido: str) -> str:
         pdf.set_font("Arial", 'B', size=16)
         pdf.cell(0, 10, txt=titulo, ln=True, align='C')
         pdf.ln(10)
+
+        if nombre_imagen:
+            match = re.search(r'grafico_[a-zA-Z0-9]+\.png', nombre_imagen)
+            if match:
+                ruta_img = os.path.join("graficos", match.group(0))
+                if os.path.exists(ruta_img):
+                    pdf.image(ruta_img, w=160)
+                    pdf.ln(10)
+
         pdf.set_font("Arial", size=12)
         # El texto debe estar codificado para evitar errores con caracteres especiales en FPDF
         contenido_encoded = contenido.encode('latin-1', 'replace').decode('latin-1')
@@ -124,15 +159,25 @@ def generar_reporte_pdf(titulo: str, contenido: str) -> str:
     except Exception as e:
         return f"Error al generar el archivo PDF: {e}"
 
-def generar_reporte_word(titulo: str, contenido: str) -> str:
+def generar_reporte_word(titulo: str, contenido: str, nombre_imagen: str = "") -> str:
     """
-    Crea un documento Word (.docx) con un título y un contenido de texto.
+    Crea un documento Word (.docx) con un título, un contenido de texto y opcionalmente una imagen.
+    Si generaste un gráfico antes, pasa su nombre de archivo (ej. 'grafico_123.png') en 'nombre_imagen'.
     Guarda el archivo en la carpeta 'reportes' y devuelve un enlace de descarga.
     """
     try:
         from docx import Document
+        from docx.shared import Inches
         document = Document()
         document.add_heading(titulo, level=1)
+
+        if nombre_imagen:
+            match = re.search(r'grafico_[a-zA-Z0-9]+\.png', nombre_imagen)
+            if match:
+                ruta_img = os.path.join("graficos", match.group(0))
+                if os.path.exists(ruta_img):
+                    document.add_picture(ruta_img, width=Inches(6.0))
+
         document.add_paragraph(contenido)
         
         filename = f"reporte_{uuid.uuid4().hex[:8]}.docx"
@@ -146,6 +191,6 @@ def generar_reporte_word(titulo: str, contenido: str) -> str:
 analytics_agent = adk.Agent(
     name="AnalyticsAgent",
     model="gemini-2.5-flash",
-    instruction="Eres un analista de datos y BI. Tu propósito es generar resúmenes financieros, crear gráficos (<img>), exportar a Excel (<a>), consultar KPIs y generar reportes en formato PDF o Word. Proporciona insights, visualizaciones y documentos descargables.",
+    instruction="Eres un analista de datos y BI. Tu propósito es generar resúmenes financieros, crear gráficos (<img>), exportar a Excel (<a>), consultar KPIs y generar reportes en formato PDF o Word. IMPORTANTE: Si el usuario te pide incluir un gráfico en un reporte PDF o Word, PRIMERO debes ejecutar la herramienta 'generar_grafico_analisis', leer el nombre del archivo generado en su respuesta (ej. grafico_xxx.png), y LUEGO ejecutar la herramienta de reporte pasándole ese nombre en el parámetro 'nombre_imagen'.",
     tools=[generar_grafico_analisis, obtener_resumen_pipeline, exportar_datos_excel, consultar_dashboard_bi, generar_reporte_pdf, generar_reporte_word]
 )

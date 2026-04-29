@@ -16,6 +16,8 @@
         .msg { padding: 10px 15px; border-radius: 15px; max-width: 75%; font-size: 14px; white-space: pre-wrap; }
         .user { align-self: flex-end; background: #118AB2; color: white; }
         .bot { align-self: flex-start; background: white; border: 1px solid #ddd; color: #333; }
+        .procesando { font-style: italic; color: #666; animation: parpadeo 1.5s infinite; }
+        @keyframes parpadeo { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
         #input-area { background: white; padding: 20px; display: flex; gap: 10px; border-top: 1px solid #ddd; align-items: flex-end; }
         textarea { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: none; font-family: inherit; font-size: 14px; box-sizing: border-box; overflow-y: hidden; }
         button { background: #5e3dd7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
@@ -48,35 +50,34 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <button class="close-btn" onclick="closeHelp()">&times;</button>
             <h2>🤖 Guía de Usuario</h2>
-            <p>Descubre todo lo que puedes pedirle a tu asistente:</p>
+            <p>Para obtener los mejores resultados y garantizar que el asistente active la herramienta correcta, utiliza estas <b>frases exactas</b> (puedes reemplazar lo que está entre corchetes con tu información):</p>
             
-            <h3 style="color: #0c6a8a;">🔍 1. Búsqueda y Consulta</h3>
+            <h3 style="color: #0c6a8a;">🔍 Búsquedas de Datos y Consultas:</h3>
             <ul style="margin-top: 0;">
-                <li>"Búscame a Ana Gómez, ¿qué información tenemos?"</li>
-                <li>"Dame una lista general de los clientes."</li>
-                <li>"¿Cuántos clientes tienen un valor mayor a $50,000? Usa SQL."</li>
-                <li>"Revisa si tengo clientes abandonados o sin seguimiento reciente."</li>
+                <li><em>"Busca clientes por el criterio: [Nombre del cliente o Empresa]"</em></li>
+                <li><em>"Revisa los clientes abandonados"</em></li>
+                <li><em>"Ejecuta la siguiente consulta SQL: [Escribe tu SELECT aquí]"</em></li>
             </ul>
 
-            <h3 style="color: #0c6a8a;">📊 2. Gráficos y Análisis Financiero</h3>
+            <h3 style="color: #0c6a8a;">📈 Análisis y Reportes de BI:</h3>
             <ul style="margin-top: 0;">
-                <li>"Génerame un gráfico circular con el <b>estado</b> actual."</li>
-                <li>"Muéstrame un gráfico de barras con el <b>valor</b> del pipeline."</li>
-                <li>"Dame un resumen analítico y financiero de nuestro pipeline."</li>
-                <li>"Descarga la lista de todos nuestros clientes en un archivo <b>Excel</b>."</li>
+                <li><em>"Genera un gráfico de [estado / prioridad / valor / fuente / conversion]"</em></li>
+                <li><em>"Obtén un resumen del pipeline"</em></li>
+                <li><em>"Exporta los datos a Excel"</em></li>
+                <li><em>"Genera un reporte en [PDF / Word] con el título '[Tu Título]' y el contenido '[Tu Texto]'"</em></li>
             </ul>
 
-            <h3 style="color: #0c6a8a;">✍️ 3. CRM en Vivo (Escritura)</h3>
+            <h3 style="color: #0c6a8a;">✍️ Gestión de CRM en Vivo:</h3>
             <ul style="margin-top: 0;">
-                <li>"Acabo de hablar con Juan. Pásalo a la etapa <b>Cotizado</b>."</li>
-                <li>"Registra una <b>llamada</b> con Lorena. El presupuesto se aprueba pronto."</li>
+                <li><em>"Actualiza el estado del cliente '[Nombre]' a '[Nuevo Estado]'"</em><br><small>(Estados válidos: Nuevo, Contactado, Calificado, En Proceso, Reunión Agendada, Cotizado, En Negociación, Cerrado (Ganado), Cerrado (Perdido))</small></li>
+                <li><em>"Registra un seguimiento para el cliente '[Nombre]' de tipo '[Llamada/Reunión/Correo]' con la descripción '[Detalles]'"</em></li>
             </ul>
 
-            <h3 style="color: #0c6a8a;">🚀 4. Capacidades Avanzadas (Módulo IA)</h3>
+            <h3 style="color: #0c6a8a;">🧠 Tareas de IA Avanzada:</h3>
             <ul style="margin-top: 0;">
-                <li><strong>Dashboard BI:</strong> "Revisa el BI y dime las ventas totales."</li>
-                <li><strong>Documentos:</strong> "Lee el contrato en Word / Excel / PDF y hazme un resumen."</li>
-                <li><strong>Correos:</strong> "Redacta y envía un correo de seguimiento a Ana Gómez."</li>
+                <li><em>"Analiza el documento '[Nombre del Archivo]' y hazme un resumen"</em></li>
+                <li><em>"Calcula la probabilidad de cierre del cliente '[Nombre]'"</em></li>
+                <li><em>"Envía un correo a '[Nombre]' al correo '[correo@destino.com]' con el asunto '[Asunto]' y el cuerpo '[Mensaje]'"</em></li>
             </ul>
         </div>
     </div>
@@ -176,6 +177,14 @@
             input.value = '';
             input.style.height = 'auto'; // Restaurar altura original al enviar
 
+            // --- AÑADIR INDICADOR DE PROCESANDO ---
+            const processingDiv = document.createElement('div');
+            processingDiv.className = 'msg bot procesando';
+            processingDiv.id = 'processing-indicator';
+            processingDiv.textContent = 'Procesando... ⏳';
+            chatBox.appendChild(processingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
             // Recuperamos el ID de sesión del almacenamiento local del navegador
             const sessionId = localStorage.getItem('session_id');
 
@@ -187,6 +196,10 @@
                 });
                 const data = await response.json();
                 
+                // --- QUITAR INDICADOR DE PROCESANDO ---
+                const indicator = document.getElementById('processing-indicator');
+                if (indicator) indicator.remove();
+
                 // Guardamos el ID de sesión que nos devuelve el servidor para usarlo en el próximo mensaje
                 if (data.session_id) {
                     localStorage.setItem('session_id', data.session_id);
@@ -201,6 +214,10 @@
                 chatBox.appendChild(botMsgDiv);
                 
             } catch(e) {
+                // --- QUITAR INDICADOR EN CASO DE ERROR ---
+                const indicator = document.getElementById('processing-indicator');
+                if (indicator) indicator.remove();
+
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'msg bot';
                 errorDiv.style.color = 'red';

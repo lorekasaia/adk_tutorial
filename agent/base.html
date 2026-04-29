@@ -2,40 +2,17 @@
 <html>
 <head>
     <title>Batia AI Assistant</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        #header { background: #0c6a8a; color: white; padding: 15px; display: flex; align-items: center; justify-content: center; gap: 15px; }
-        .avatar { width: 55px; height: 55px; border-radius: 50%; background: #e0f7fa; padding: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); animation: bailar 3s infinite ease-in-out; }
-        @keyframes bailar {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            25% { transform: translateY(-5px) rotate(-8deg); }
-            50% { transform: translateY(-8px) rotate(0deg); }
-            75% { transform: translateY(-5px) rotate(8deg); }
-        }
-        #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px 15px; border-radius: 15px; max-width: 75%; font-size: 14px; white-space: pre-wrap; }
-        .user { align-self: flex-end; background: #118AB2; color: white; }
-        .bot { align-self: flex-start; background: white; border: 1px solid #ddd; color: #333; }
-        .procesando { font-style: italic; color: #666; animation: parpadeo 1.5s infinite; }
-        @keyframes parpadeo { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-        #input-area { background: white; padding: 20px; display: flex; gap: 10px; border-top: 1px solid #ddd; align-items: flex-end; }
-        textarea { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: none; font-family: inherit; font-size: 14px; box-sizing: border-box; overflow-y: hidden; }
-        button { background: #5e3dd7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        /* Estilos para el Modal de Ayuda */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 20px 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; line-height: 1.5; }
-        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #555; background: none; border: none; padding: 0; }
-        .help-btn { background: #29b6f6; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; margin-left: auto; transition: background 0.3s; }
-        .help-btn:hover { background: #0288d1; }
-        #drag-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(12, 106, 138, 0.85); color: white; z-index: 2000; justify-content: center; align-items: center; font-size: 28px; font-weight: bold; border: 8px dashed rgba(255,255,255,0.5); box-sizing: border-box; flex-direction: column; gap: 15px; }
-    </style>
+    
+    <!-- Enlace a la hoja de estilos externa con la nueva paleta -->
+    <link rel="stylesheet" href="/static/style.css">
+    
     <!-- Librería de seguridad para prevenir XSS al usar innerHTML -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
 </head>
 <body>
     <div id="header">
         <img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23e1f5fe'/%3E%3Cline x1='50' y1='25' x2='50' y2='10' stroke='%230277bd' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='10' r='4' fill='%23ffca28'/%3E%3Crect x='25' y='25' width='50' height='40' rx='15' fill='%2329b6f6'/%3E%3Crect x='18' y='35' width='7' height='20' rx='3' fill='%230288d1'/%3E%3Crect x='75' y='35' width='7' height='20' rx='3' fill='%230288d1'/%3E%3Crect x='30' y='30' width='40' height='30' rx='10' fill='%23ffffff'/%3E%3Ccircle cx='40' cy='42' r='4' fill='%230277bd'/%3E%3Ccircle cx='60' cy='42' r='4' fill='%230277bd'/%3E%3Ccircle cx='35' cy='50' r='3' fill='%23f48fb1' opacity='0.7'/%3E%3Ccircle cx='65' cy='50' r='3' fill='%23f48fb1' opacity='0.7'/%3E%3Cpath d='M45 52 Q50 56 55 52' stroke='%230277bd' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" alt="Robot Asistente" class="avatar">
-        <h2 style="margin: 0;"> Mi asistente virtual de ventas | Grupo Batia</h2>
+        <h2 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.5px;">Mi asistente virtual de ventas | Grupo Batia</h2>
         <button class="help-btn" onclick="openHelp()">❓ Guía de Uso</button>
     </div>
 
@@ -49,42 +26,58 @@
     <div id="helpModal" class="modal-overlay" onclick="closeHelp(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
             <button class="close-btn" onclick="closeHelp()">&times;</button>
-            <h2>🤖 Guía de Usuario</h2>
-            <p>Para obtener los mejores resultados y garantizar que el asistente active la herramienta correcta, utiliza estas <b>frases exactas</b> (puedes reemplazar lo que está entre corchetes con tu información):</p>
+            <h2 style="text-align: center; color: var(--primary-color); margin-top: 0;">🤖 Guía de Usuario</h2>
+            <p style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Haz clic en cualquier frase para copiarla al chat y ajusta los datos entre corchetes <b>[ ]</b>.</p>
             
-            <h3 style="color: #0c6a8a;">🔍 Búsquedas de Datos y Consultas:</h3>
-            <ul style="margin-top: 0;">
-                <li><em>"Busca clientes por el criterio: [Nombre del cliente o Empresa]"</em></li>
-                <li><em>"Revisa los clientes abandonados"</em></li>
-                <li><em>"Ejecuta la siguiente consulta SQL: [Escribe tu SELECT aquí]"</em></li>
-            </ul>
+            <div class="guide-section info">
+                <h3>🔍 Búsquedas y Consultas</h3>
+                <ul class="prompt-list">
+                    <li class="prompt-item" onclick="usePrompt('Busca clientes por el criterio: [Nombre o Empresa]')">Busca clientes por el criterio: [Nombre o Empresa]</li>
+                    <li class="prompt-item" onclick="usePrompt('Revisa los clientes abandonados')">Revisa los clientes abandonados</li>
+                    <li class="prompt-item" onclick="usePrompt('Muestra los clientes que [ej. tengan un valor mayor a 50000]')">Muestra los clientes que [condición avanzada]</li>
+                </ul>
+            </div>
 
-            <h3 style="color: #0c6a8a;">📈 Análisis y Reportes de BI:</h3>
-            <ul style="margin-top: 0;">
-                <li><em>"Genera un gráfico de [estado / prioridad / valor / fuente / conversion]"</em></li>
-                <li><em>"Obtén un resumen del pipeline"</em></li>
-                <li><em>"Exporta los datos a Excel"</em></li>
-                <li><em>"Genera un reporte en [PDF / Word] con el título '[Tu Título]' y el contenido '[Tu Texto]'"</em></li>
-            </ul>
+            <div class="guide-section success">
+                <h3>📈 Análisis y Reportes de BI</h3>
+                <ul class="prompt-list">
+                    <li class="prompt-item" onclick="usePrompt('Genera un gráfico de [estado / prioridad / valor / fuente / conversion]')">Genera un gráfico de [estado / prioridad / valor...]</li>
+                    <li class="prompt-item" onclick="usePrompt('Obtén un resumen del pipeline')">Obtén un resumen del pipeline</li>
+                    <li class="prompt-item" onclick="usePrompt('Exporta los datos a Excel')">Exporta los datos a Excel</li>
+                    <li class="prompt-item" onclick="usePrompt('Genera un reporte en PDF con el título \'Reporte de Ventas\' y el contenido \'Adjunto el resumen general.\'')">Genera un reporte en [PDF / Word] con título y contenido...</li>
+                </ul>
+            </div>
 
-            <h3 style="color: #0c6a8a;">✍️ Gestión de CRM en Vivo:</h3>
-            <ul style="margin-top: 0;">
-                <li><em>"Actualiza el estado del cliente '[Nombre]' a '[Nuevo Estado]'"</em><br><small>(Estados válidos: Nuevo, Contactado, Calificado, En Proceso, Reunión Agendada, Cotizado, En Negociación, Cerrado (Ganado), Cerrado (Perdido))</small></li>
-                <li><em>"Registra un seguimiento para el cliente '[Nombre]' de tipo '[Llamada/Reunión/Correo]' con la descripción '[Detalles]'"</em></li>
-            </ul>
+            <div class="guide-section warning">
+                <h3>✍️ Gestión de CRM</h3>
+                <ul class="prompt-list">
+                    <li class="prompt-item" onclick="usePrompt('Actualiza el estado del cliente \'[Nombre]\' a \'[Nuevo Estado]\'')">Actualiza el estado del cliente '[Nombre]' a '[Nuevo Estado]'</li>
+                    <li class="prompt-item" onclick="usePrompt('Registra un seguimiento para el cliente \'[Nombre]\' de tipo \'Llamada\' con la descripción \'[Detalles]\'')">Registra un seguimiento para el cliente de tipo [Llamada/Reunión]...</li>
+                </ul>
+            </div>
 
-            <h3 style="color: #0c6a8a;">🧠 Tareas de IA Avanzada:</h3>
-            <ul style="margin-top: 0;">
-                <li><em>"Analiza el documento '[Nombre del Archivo]' y hazme un resumen"</em></li>
-                <li><em>"Calcula la probabilidad de cierre del cliente '[Nombre]'"</em></li>
-                <li><em>"Envía un correo a '[Nombre]' al correo '[correo@destino.com]' con el asunto '[Asunto]' y el cuerpo '[Mensaje]'"</em></li>
-            </ul>
+            <div class="guide-section ai">
+                <h3>🧠 Tareas de IA Avanzada</h3>
+                <ul class="prompt-list">
+                    <li class="prompt-item" onclick="usePrompt('Analiza el documento \'[Nombre del Archivo]\' y hazme un resumen')">Analiza el documento '[Nombre del Archivo]' y hazme un resumen</li>
+                    <li class="prompt-item" onclick="usePrompt('Calcula la probabilidad de cierre del cliente \'[Nombre]\'')">Calcula la probabilidad de cierre del cliente '[Nombre]'</li>
+                    <li class="prompt-item" onclick="usePrompt('Envía un correo a \'[Nombre]\' al correo \'[correo@destino.com]\' con el asunto \'[Asunto]\' y el cuerpo \'[Mensaje]\'')">Envía un correo a '[Nombre]' al correo '[Destino]'...</li>
+                </ul>
+            </div>
         </div>
     </div>
-    <div id="chat-box"></div>
-    <div id="input-area">
-        <textarea id="userInput" rows="1" placeholder="Pregunta sobre clientes, pide gráficas o análisis..."></textarea>
-        <button onclick="sendMsg()">Enviar</button>
+    <div id="chat-wrapper">
+        <div id="chat-box">
+            <div class="msg bot">¡Hola! Soy tu asistente virtual comercial de Grupo Batia 👋<br><br>Estoy aquí para ayudarte a buscar clientes, analizar datos, generar gráficas y apoyarte con tareas de CRM.<br><br>¿En qué te puedo ayudar hoy?</div>
+        </div>
+    </div>
+    <div id="input-wrapper">
+        <div id="input-area">
+            <textarea id="userInput" rows="1" placeholder="Pregunta sobre clientes, pide gráficas o análisis..."></textarea>
+            <button onclick="sendMsg()" title="Enviar mensaje">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+            </button>
+        </div>
     </div>
     <script>
         function openHelp() {
@@ -94,6 +87,15 @@
             if (!e || e.target.id === 'helpModal' || e.target.className === 'close-btn') {
                 document.getElementById('helpModal').style.display = 'none';
             }
+        }
+
+        // Función para copiar el prompt al input y cerrar la ayuda
+        function usePrompt(text) {
+            const input = document.getElementById('userInput');
+            input.value = text;
+            input.focus();
+            input.dispatchEvent(new Event('input')); // Auto-ajustar altura
+            closeHelp();
         }
 
         const inputElement = document.getElementById('userInput');
@@ -165,6 +167,7 @@
         async function sendMsg() {
             const input = document.getElementById('userInput');
             const chatBox = document.getElementById('chat-box');
+            const chatWrapper = document.getElementById('chat-wrapper');
             const prompt = input.value.trim();
             if(!prompt) return;
 
@@ -183,7 +186,7 @@
             processingDiv.id = 'processing-indicator';
             processingDiv.textContent = 'Procesando... ⏳';
             chatBox.appendChild(processingDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            chatWrapper.scrollTop = chatWrapper.scrollHeight;
 
             // Recuperamos el ID de sesión del almacenamiento local del navegador
             const sessionId = localStorage.getItem('session_id');
@@ -224,7 +227,7 @@
                 errorDiv.textContent = 'Error de conexión.';
                 chatBox.appendChild(errorDiv);
             }
-            chatBox.scrollTop = chatBox.scrollHeight;
+            chatWrapper.scrollTop = chatWrapper.scrollHeight;
         }
     </script>
 </body>

@@ -128,6 +128,11 @@ async def get_ui():
     # (Se asume que ejecutas `python agent/main.py` desde el directorio `ADK_Basic`)
     return FileResponse("agent/base.html")
 
+# Servimos el archivo CSS directamente desde la carpeta agent
+@app.get("/static/style.css")
+async def get_css():
+    return FileResponse("agent/style.css")
+
 # --- ENDPOINT DE COMUNICACIÓN ---
 @app.post("/chat")
 async def chat_endpoint(request: Request):

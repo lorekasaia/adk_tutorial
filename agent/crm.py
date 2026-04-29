@@ -1,6 +1,6 @@
 import sqlalchemy
 from google import adk
-from core.database import obtener_motor_bd, MAPA_ESTADOS, MAPA_ESTADOS_INVERSO
+from database import obtener_motor_bd, MAPA_ESTADOS, MAPA_ESTADOS_INVERSO
 
 def actualizar_estado_cliente(nombre_cliente: str, nuevo_estado_texto: str) -> str:
     estado_id = MAPA_ESTADOS_INVERSO.get(nuevo_estado_texto.lower())

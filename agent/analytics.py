@@ -3,7 +3,7 @@ import uuid
 import pandas as pd
 import matplotlib.pyplot as plt
 from google import adk
-from core.database import consultar_cloud_sql, MAPA_ESTADOS
+from database import consultar_cloud_sql, MAPA_ESTADOS
 
 def obtener_resumen_pipeline() -> str:
     try:
@@ -99,9 +99,53 @@ def exportar_datos_excel(termino_busqueda: str = "") -> str:
     except Exception as e:
         return f"Error al generar el archivo Excel: {e}"
 
+def generar_reporte_pdf(titulo: str, contenido: str) -> str:
+    """
+    Crea un documento PDF con un título y un contenido de texto.
+    Guarda el archivo en la carpeta 'reportes' y devuelve un enlace de descarga.
+    """
+    try:
+        from fpdf import FPDF
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', size=16)
+        pdf.cell(0, 10, txt=titulo, ln=True, align='C')
+        pdf.ln(10)
+        pdf.set_font("Arial", size=12)
+        # El texto debe estar codificado para evitar errores con caracteres especiales en FPDF
+        contenido_encoded = contenido.encode('latin-1', 'replace').decode('latin-1')
+        pdf.multi_cell(0, 10, txt=contenido_encoded)
+        
+        filename = f"reporte_{uuid.uuid4().hex[:8]}.pdf"
+        filepath = os.path.join("reportes", filename)
+        pdf.output(filepath)
+        
+        return f"Reporte PDF generado. Responde con este enlace para descarga: <br><a href='/reportes/{filename}' download style='display: inline-block; padding: 10px 15px; background: #D32F2F; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px; font-weight: bold;'>📄 Descargar Reporte PDF</a>"
+    except Exception as e:
+        return f"Error al generar el archivo PDF: {e}"
+
+def generar_reporte_word(titulo: str, contenido: str) -> str:
+    """
+    Crea un documento Word (.docx) con un título y un contenido de texto.
+    Guarda el archivo en la carpeta 'reportes' y devuelve un enlace de descarga.
+    """
+    try:
+        from docx import Document
+        document = Document()
+        document.add_heading(titulo, level=1)
+        document.add_paragraph(contenido)
+        
+        filename = f"reporte_{uuid.uuid4().hex[:8]}.docx"
+        filepath = os.path.join("reportes", filename)
+        document.save(filepath)
+        
+        return f"Reporte Word generado. Responde con este enlace para descarga: <br><a href='/reportes/{filename}' download style='display: inline-block; padding: 10px 15px; background: #2B579A; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px; font-weight: bold;'>📄 Descargar Reporte Word</a>"
+    except Exception as e:
+        return f"Error al generar el archivo Word: {e}"
+
 analytics_agent = adk.Agent(
     name="AnalyticsAgent",
     model="gemini-1.5-flash",
-    instruction="Eres un analista de datos y BI. Tu propósito es generar resúmenes financieros, crear gráficos visuales (con <img>), exportar datos a Excel (con <a>) y consultar KPIs del dashboard de BI. Proporciona insights y visualizaciones claras.",
-    tools=[generar_grafico_analisis, obtener_resumen_pipeline, exportar_datos_excel, consultar_dashboard_bi]
+    instruction="Eres un analista de datos y BI. Tu propósito es generar resúmenes financieros, crear gráficos (<img>), exportar a Excel (<a>), consultar KPIs y generar reportes en formato PDF o Word. Proporciona insights, visualizaciones y documentos descargables.",
+    tools=[generar_grafico_analisis, obtener_resumen_pipeline, exportar_datos_excel, consultar_dashboard_bi, generar_reporte_pdf, generar_reporte_word]
 )

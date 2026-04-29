@@ -16,7 +16,7 @@ matplotlib.use('Agg')
 
 import uuid
 import shutil
-import google.generativeai as genai
+from google import genai
 
 from google.adk.sessions import DatabaseSessionService
 
@@ -25,10 +25,10 @@ import uvicorn
 import asyncio
 
 # Importar agentes especializados
-from agents.data_query import data_query_agent
-from agents.analytics import analytics_agent
-from agents.crm import crm_agent
-from agents.advanced_ai import advanced_ai_agent
+from data_query import data_query_agent
+from analytics import analytics_agent
+from crm import crm_agent
+from advanced_ai import advanced_ai_agent
 
 app = FastAPI(title="Batia Agent UI")
 
@@ -52,7 +52,7 @@ Responde ÚNICAMENTE con el nombre exacto de la categoría.
 
 Categorías disponibles:
 - DATA_QUERY: Buscar clientes, ejecutar SQL, o revisar clientes abandonados/sin seguimiento.
-- ANALYTICS: Resúmenes financieros, gráficos, exportar a Excel, KPIs de BI.
+- ANALYTICS: Resúmenes financieros, gráficos, exportar a Excel, KPIs de BI, y crear reportes en PDF o Word.
 - CRM: Actualizar estados en el pipeline o registrar seguimientos/llamadas/reuniones.
 - ADVANCED_AI: Leer o analizar documentos (PDF, Word, Excel, Imagen), enviar correos, calcular lead scoring.
 
@@ -86,13 +86,13 @@ RUNNERS = {
 async def route_to_agent(prompt: str) -> str:
     """Usa el OrchestratorAgent para clasificar el prompt y dirigirlo al especialista."""
     try:
-        # Instanciamos el modelo con las instrucciones del agente orquestador
-        routing_model = genai.GenerativeModel(
-            model_name=orchestrator_agent.model,
-            system_instruction=orchestrator_agent.instruction
+        # Instanciamos el cliente del nuevo SDK (google.genai)
+        client = genai.Client()
+        response = await client.aio.models.generate_content(
+            model=orchestrator_agent.model,
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(system_instruction=orchestrator_agent.instruction)
         )
-        # Pasamos el prompt del usuario directamente para que el orquestador lo evalúe
-        response = await routing_model.generate_content_async(prompt)
         category = response.text.strip().upper()
         
         # Verificación flexible por si el modelo añade alguna puntuación extra

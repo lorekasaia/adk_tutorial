@@ -8,6 +8,7 @@ google-adk>=1.5.0
 fastapi
 # Servidor web para ejecutar FastAPI
 uvicorn[standard]
+google-generativeai   # SDK de Google Generative AI
 
 # --- Conectividad y Datos ---
 python-dotenv         # Para cargar variables de entorno desde el archivo .env
@@ -21,6 +22,7 @@ python-multipart      # Necesario para que FastAPI maneje formularios y subidas
 requests              # Dependencia interna necesaria para las librerías de Google Cloud y GenAI
 openpyxl              # Para exportar DataFrames a formato Excel (.xlsx)
 PyPDF2                # Para leer y extraer texto de archivos PDF reales
+fpdf2                 # Para generar reportes en formato PDF
 python-docx           # Para leer documentos de Word (.docx)
 Pillow                # Para procesar y abrir imágenes
 pytesseract           # Motor OCR para extraer texto de imágenes

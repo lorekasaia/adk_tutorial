@@ -8,7 +8,7 @@ import pandas as pd
 from PIL import Image
 import pytesseract
 from google import adk
-from core.database import consultar_cloud_sql, MAPA_ESTADOS
+from database import consultar_cloud_sql, MAPA_ESTADOS
 
 def analizar_documento_cliente(nombre_cliente: str, tipo_documento: str) -> str:
     carpeta = "documentos"

@@ -1,7 +1,7 @@
 import pandas as pd
 import sqlalchemy
 from google import adk
-from core.database import obtener_motor_bd, consultar_cloud_sql, MAPA_ESTADOS
+from database import obtener_motor_bd, consultar_cloud_sql, MAPA_ESTADOS
 
 def buscar_clientes_por_criterio(termino_busqueda: str = "") -> str:
     try:
